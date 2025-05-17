@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Code2Vec-BugHunter Demo{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .code-editor {
+        font-family: 'Courier New', monospace;
+        min-height: 300px;
+        resize: vertical;
+    }
+    
+    .result-container {
+        margin-top: 20px;
+        display: none;
+    }
+    
+    .attention-item {
+        margin-bottom: 10px;
+    }
+    
+    .attention-bar {
+        height: 10px;
+        margin-top: 5px;
+    }
+    
+    .spinner-container {
+        display: none;
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .example-btn {
+        margin-bottom: 10px;
+    }
+    
+    #attention-chart-container {
+        height: 300px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Bug Detection Demo</h1>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    Try our bug detection model on Python code snippets. The model will classify the code as buggy or non-buggy and highlight suspicious parts.
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Example Code Snippets</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline-primary example-btn" data-code="def get_element(arr, index):\n    return arr[index]  # Missing bounds check">Off-by-one Error</button>
+                    <button class="btn btn-sm btn-outline-primary example-btn" data-code="def process_data(data):\n    result = data['key']  # KeyError if key doesn't exist\n    return result * 2">Key Error</button>
+                    <button class="btn btn-sm btn-outline-primary example-btn" data-code="def calculate_average(numbers):\n    total = sum(numbers)\n    return total / len(numbers)  # Division by zero if empty">Division by Zero</button>
+                    <button class="btn btn-sm btn-outline-primary example-btn" data-code="def parse_number(s):\n    return int(s)  # ValueError if s is not a number">Uncaught Exception</button>
+                    <button class="btn btn-sm btn-outline-primary example-btn" data-code="def get_element(arr, index):\n    if 0 <= index < len(arr):\n        return arr[index]\n    return None">Safe Index Access</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Python Code</h5>
+            </div>
+            <div class="card-body">
+                <textarea id="code-input" class="form-control code-editor" placeholder="Enter your Python code here..."></textarea>
+            </div>
+            <div class="card-footer">
+                <button id="analyze-btn" class="btn btn-primary">
+                    <i class="bi bi-search me-2"></i>Analyze Code
+                </button>
+                <button id="clear-btn" class="btn btn-outline-secondary ms-2">
+                    <i class="bi bi-x-circle me-2"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>How to Use</h5>
+            </div>
+            <div class="card-body">
+                <ol class="list-group list-group-numbered mb-0">
+                    <li class="list-group-item">Enter Python code in the editor</li>
+                    <li class="list-group-item">Click "Analyze Code" button</li>
+                    <li class="list-group-item">View bug detection results</li>
+                    <li class="list-group-item">Examine attention visualization</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="spinner" class="spinner-container">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Analyzing code...</p>
+</div>
+
+<div id="error-container" class="alert alert-danger mt-4" style="display: none;">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <span id="error-message"></span>
+</div>
+
+<div id="result-container" class="result-container">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header" id="result-header">
+                    <h5>Analysis Result</h5>
+                </div>
+                <div class="card-body">
+                    <div id="bug-status" class="alert mb-4">
+                        <h4 class="alert-heading"><span id="bug-icon"></span> <span id="bug-title"></span></h4>
+                        <p id="bug-message"></p>
+                        <hr>
+                        <p class="mb-0">Confidence: <span id="confidence-value"></span></p>
+                    </div>
+                    
+                    <h5>Top Attention Areas</h5>
+                    <div id="attention-areas"></div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Attention Distribution</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="attention-chart-container">
+                        <canvas id="attention-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Visualization</h5>
+                </div>
+                <div class="card-body">
+                    <p>View the full visualization:</p>
+                    <a id="visualization-link" href="#" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-eye me-2"></i>Open Detailed Visualization
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const codeInput = document.getElementById('code-input');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const spinner = document.getElementById('spinner');
+    const errorContainer = document.getElementById('error-container');
+    const errorMessage = document.getElementById('error-message');
+    const resultContainer = document.getElementById('result-container');
+    const bugStatus = document.getElementById('bug-status');
+    const bugIcon = document.getElementById('bug-icon');
+    const bugTitle = document.getElementById('bug-title');
+    const bugMessage = document.getElementById('bug-message');
+    const confidenceValue = document.getElementById('confidence-value');
+    const attentionAreas = document.getElementById('attention-areas');
+    const visualizationLink = document.getElementById('visualization-link');
+    const exampleBtns = document.querySelectorAll('.example-btn');
+    
+    let attentionChart = null;
+    
+    // Load example code
+    exampleBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            codeInput.value = this.getAttribute('data-code');
+        });
+    });
+    
+    // Clear code editor
+    clearBtn.addEventListener('click', function() {
+        codeInput.value = '';
+        resetUI();
+    });
+    
+    // Analyze code
+    analyzeBtn.addEventListener('click', function() {
+        const code = codeInput.value.trim();
+        
+        if (!code) {
+            showError('Please enter some Python code to analyze.');
+            return;
+        }
+        
+        analyzeCode(code);
+    });
+    
+    function analyzeCode(code) {
+        // Reset UI
+        resetUI();
+        
+        // Show spinner
+        spinner.style.display = 'block';
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('code', code);
+        
+        // Send API request
+        fetch('/api/analyze', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Hide spinner
+            spinner.style.display = 'none';
+            
+            if (data.success) {
+                // Show results
+                displayResults(data);
+            } else {
+                // Show error
+                showError(data.error);
+            }
+        })
+        .catch(error => {
+            // Hide spinner
+            spinner.style.display = 'none';
+            
+            // Show error
+            showError('An error occurred: ' + error.message);
+        });
+    }
+    
+    function displayResults(data) {
+        // Show result container
+        resultContainer.style.display = 'block';
+        
+        // Update bug status
+        if (data.is_buggy) {
+            bugStatus.className = 'alert alert-danger mb-4';
+            bugIcon.innerHTML = '<i class="bi bi-bug-fill me-2"></i>';
+            bugTitle.textContent = 'Potential Bug Detected';
+            bugMessage.textContent = 'The model has detected potential issues in this code that might lead to bugs.';
+        } else {
+            bugStatus.className = 'alert alert-success mb-4';
+            bugIcon.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>';
+            bugTitle.textContent = 'No Bugs Detected';
+            bugMessage.textContent = 'The model did not detect any potential bugs in this code.';
+        }
+        
+        // Update confidence
+        confidenceValue.textContent = (data.confidence * 100).toFixed(2) + '%';
+        
+        // Update attention areas
+        attentionAreas.innerHTML = '';
+        data.attention.forEach((item, index) => {
+            const [path, weight] = item;
+            const percentage = (weight * 100).toFixed(1);
+            
+            const attentionItem = document.createElement('div');
+            attentionItem.className = 'attention-item';
+            attentionItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>${index + 1}. ${path}</span>
+                    <span class="badge bg-primary">${percentage}%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" role="progressbar" style="width: ${percentage}%" 
+                         aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            `;
+            
+            attentionAreas.appendChild(attentionItem);
+        });
+        
+        // Update visualization link
+        if (data.visualization_url) {
+            visualizationLink.href = data.visualization_url;
+        }
+        
+        // Create attention chart
+        createAttentionChart(data.attention);
+    }
+    
+    function createAttentionChart(attention) {
+        const ctx = document.getElementById('attention-chart').getContext('2d');
+        
+        // Destroy previous chart if exists
+        if (attentionChart) {
+            attentionChart.destroy();
+        }
+        
+        // Prepare data (only top 5 for clarity)
+        const topAttention = attention.slice(0, 5);
+        const labels = topAttention.map((item, index) => `Path ${index + 1}`);
+        const data = topAttention.map(item => item[1]);
+        
+        // Create chart
+        attentionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Attention Weight',
+                    data: data,
+                    backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: Math.max(...data) * 1.2 // Add some padding
+                    }
+                }
+            }
+        });
+    }
+    
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorContainer.style.display = 'block';
+    }
+    
+    function resetUI() {
+        // Hide result container
+        resultContainer.style.display = 'none';
+        
+        // Hide error container
+        errorContainer.style.display = 'none';
+        
+        // Destroy chart if exists
+        if (attentionChart) {
+            attentionChart.destroy();
+            attentionChart = null;
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Code2Vec-BugHunter: Deep Learning for Bug Detection{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="container">
+        <h1 class="display-4 mb-4">Code2Vec-BugHunter</h1>
+        <p class="lead mb-4">Advanced Deep Learning System for Bug Detection in Source Code</p>
+        <a href="/demo" class="btn btn-primary btn-lg me-2">Try the Demo</a>
+        <a href="https://github.com/yourusername/code2vec-bughunter" class="btn btn-outline-secondary btn-lg">View on GitHub</a>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-lg-4">
+        <div class="feature-box bg-dark">
+            <h3><i class="bi bi-braces text-primary me-2"></i>Code Embeddings</h3>
+            <p>Transforms source code into vector embeddings using abstract syntax trees (ASTs) and path-based representations.</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="feature-box bg-dark">
+            <h3><i class="bi bi-bug text-primary me-2"></i>Bug Detection</h3>
+            <p>Classifies code snippets as buggy or non-buggy with high accuracy using deep neural networks.</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="feature-box bg-dark">
+            <h3><i class="bi bi-eye text-primary me-2"></i>Explainability</h3>
+            <p>Visualizes model attention to understand why code is flagged as potentially buggy.</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <h3>How It Works</h3>
+        <ol class="list-group list-group-numbered mb-4">
+            <li class="list-group-item">Source code is parsed into Abstract Syntax Trees (ASTs)</li>
+            <li class="list-group-item">ASTs are converted to path-based representations</li>
+            <li class="list-group-item">Neural network generates code embeddings</li>
+            <li class="list-group-item">Model predicts whether code contains bugs</li>
+            <li class="list-group-item">Attention mechanism highlights suspicious code areas</li>
+        </ol>
+    </div>
+    <div class="col-md-6">
+        <h3>Architecture</h3>
+        <div class="text-center p-3 bg-dark rounded mb-4">
+            <!-- SVG representation of the architecture -->
+            <svg width="100%" height="240" viewBox="0 0 600 240">
+                <!-- Source Code -->
+                <rect x="20" y="80" width="100" height="60" rx="5" fill="none" stroke="#6c757d" stroke-width="2" />
+                <text x="70" y="115" font-size="14" text-anchor="middle" fill="#fff">Source Code</text>
+                
+                <!-- AST Parser -->
+                <rect x="170" y="80" width="100" height="60" rx="5" fill="none" stroke="#6c757d" stroke-width="2" />
+                <text x="220" y="115" font-size="14" text-anchor="middle" fill="#fff">AST Parser</text>
+                
+                <!-- Path Extractor -->
+                <rect x="320" y="80" width="100" height="60" rx="5" fill="none" stroke="#6c757d" stroke-width="2" />
+                <text x="370" y="115" font-size="14" text-anchor="middle" fill="#fff">Path Extractor</text>
+                
+                <!-- Neural Network -->
+                <rect x="470" y="80" width="100" height="60" rx="5" fill="none" stroke="#007bff" stroke-width="2" />
+                <text x="520" y="115" font-size="14" text-anchor="middle" fill="#fff">Neural Network</text>
+                
+                <!-- Arrows -->
+                <line x1="120" y1="110" x2="170" y2="110" stroke="#6c757d" stroke-width="2" marker-end="url(#arrowhead)" />
+                <line x1="270" y1="110" x2="320" y2="110" stroke="#6c757d" stroke-width="2" marker-end="url(#arrowhead)" />
+                <line x1="420" y1="110" x2="470" y2="110" stroke="#6c757d" stroke-width="2" marker-end="url(#arrowhead)" />
+                
+                <!-- Output -->
+                <line x1="520" y1="140" x2="520" y2="170" stroke="#007bff" stroke-width="2" marker-end="url(#arrowhead)" />
+                <rect x="470" y="170" width="100" height="40" rx="5" fill="none" stroke="#007bff" stroke-width="2" />
+                <text x="520" y="195" font-size="14" text-anchor="middle" fill="#fff">Bug Prediction</text>
+                
+                <!-- Arrowhead marker -->
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#6c757d" />
+                    </marker>
+                </defs>
+            </svg>
+        </div>
+    </div>
+</div>
+
+<div class="mt-5">
+    <h3>Use Cases</h3>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-code-slash text-primary me-2"></i>Code Review</h5>
+                    <p class="card-text">Automatically detect potential bugs during code review to improve code quality.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-terminal text-primary me-2"></i>IDE Integration</h5>
+                    <p class="card-text">Integrate with development environments to provide real-time bug detection.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-tools text-primary me-2"></i>CI/CD Pipeline</h5>
+                    <p class="card-text">Incorporate into continuous integration workflows to catch bugs early.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
