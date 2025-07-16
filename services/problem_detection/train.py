@@ -47,13 +47,20 @@ def train_model(data_path: str,
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logger.info(f"Using device: {device}")
     
-    # Load and preprocess data
-    data_manager = DataManager()
-    dataset_path = data_manager.download_dataset('defects4j_subset')
-    train_loader, val_loader, test_loader = data_manager.load_datasets(dataset_path)
+    # For now, we'll use a placeholder for the data loaders.
+    # In a real implementation, we would load the preprocessed CodeSearchNet data.
+    # We will create a dummy dataset for now.
+    from torch.utils.data import TensorDataset
     
+    dummy_paths = torch.randint(0, 100, (1000, 100))
+    dummy_labels = torch.randint(0, 2, (1000,)).float()
+    dummy_dataset = TensorDataset(dummy_paths, dummy_labels)
+    train_loader = DataLoader(dummy_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(dummy_dataset, batch_size=batch_size)
+    test_loader = DataLoader(dummy_dataset, batch_size=batch_size)
+
     # Initialize model
-    path_vocab_size = data_manager.get_vocab_size()
+    path_vocab_size = 100 # Placeholder
     
     model = Code2VecBugHunter(
         path_vocab_size=path_vocab_size,
@@ -85,9 +92,9 @@ def train_model(data_path: str,
         train_loss = 0.0
         train_steps = 0
         
-        for batch in train_loader:
-            paths = batch['paths'].to(device)
-            labels = batch['label'].to(device)
+        for paths, labels in train_loader:
+            paths = paths.to(device)
+            labels = labels.to(device)
             
             optimizer.zero_grad()
             
@@ -112,9 +119,9 @@ def train_model(data_path: str,
         all_labels = []
         
         with torch.no_grad():
-            for batch in val_loader:
-                paths = batch['paths'].to(device)
-                labels = batch['label'].to(device)
+            for paths, labels in val_loader:
+                paths = paths.to(device)
+                labels = labels.to(device)
                 
                 outputs = model(paths)
                 logits = outputs['logits']
@@ -191,9 +198,9 @@ def evaluate_model(model: Code2VecBugHunter,
     all_attention = []
     
     with torch.no_grad():
-        for batch in data_loader:
-            paths = batch['paths'].to(device)
-            labels = batch['label'].to(device)
+        for paths, labels in data_loader:
+            paths = paths.to(device)
+            labels = labels.to(device)
             
             outputs = model(paths)
             logits = outputs['logits']
