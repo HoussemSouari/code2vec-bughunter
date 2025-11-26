@@ -1,0 +1,52 @@
+[
+  {
+    "id": "sample_0",
+    "code": "def calculate_average(numbers):\n    total = 0\n    for num in numbers:\n        total += num\n    return total / len(numbers)  # Division by zero if empty",
+    "is_buggy": true
+  },
+  {
+    "id": "sample_1",
+    "code": "def process_data(data):\n    result = data.get('key', 0)\n    return result * 2",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_2",
+    "code": "def calculate_average(numbers):\n    if not numbers:\n        return 0\n    total = sum(numbers)\n    return total / len(numbers)",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_3",
+    "code": "def get_element(array_3, index):\n    if 0 <= index < len(array_3):\n        return array_3[index]\n    return None",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_4",
+    "code": "def get_element(array_4, index):\n    if 0 <= index < len(array_4):\n        return array_4[index]\n    return None",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_5",
+    "code": "def process_data(data):\n    result = data['key']  # KeyError if key doesn't exist\n    return result * 2",
+    "is_buggy": true
+  },
+  {
+    "id": "sample_6",
+    "code": "def process_items(items):\n    for i in range(len(items)):\n        print(items[i])",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_7",
+    "code": "def get_element(array_7, index):\n    if 0 <= index < len(array_7):\n        return array_7[index]\n    return None",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_8",
+    "code": "def process_items(items):\n    for i in range(len(items)):\n        print(items[i])",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_9",
+    "code": "def get_element(array_9, index):\n    if 0 <= index < len(array_9):\n        return array_9[index]\n    return None",
+    "is_buggy": false
+  }
+]

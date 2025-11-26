@@ -1,6 +1,3 @@
-"""
-Web demonstration interface for Code2Vec-BugHunter.
-"""
 
 import os
 import logging
@@ -10,7 +7,7 @@ from typing import Dict, Any
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import torch
 
-from inference import CodeInference
+from scripts.inference import CodeInference
 from utils.visualization import visualize_attention
 
 logger = logging.getLogger(__name__)

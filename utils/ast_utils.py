@@ -1,7 +1,4 @@
-"""
-Utilities for AST parsing and path extraction.
-Implements Code2Vec-style path-context extraction from Python code.
-"""
+
 
 import ast
 import networkx as nx
@@ -65,12 +62,27 @@ def build_ast_graph(tree: ast.AST) -> nx.DiGraph:
     def add_nodes_edges(node, parent=None):
         node_id = id(node)
         node_type = type(node).__name__
-        
-        # Add node to graph
+        # Derive a human-readable label for terminal nodes
+        try:
+            node_label = get_node_label(node)
+        except Exception:
+            node_label = None
+
+        # Add node to graph with type and optional label/value/lineno
+        attrs = {'type': node_type}
+        if node_label is not None:
+            attrs['label'] = node_label
         if hasattr(node, 'lineno'):
-            graph.add_node(node_id, type=node_type, lineno=node.lineno)
-        else:
-            graph.add_node(node_id, type=node_type)
+            attrs['lineno'] = node.lineno
+        # For Constant/Num/Str, store the raw value when available
+        if isinstance(node, ast.Constant):
+            attrs['value'] = getattr(node, 'value', None)
+        elif isinstance(node, ast.Num):
+            attrs['value'] = getattr(node, 'n', None)
+        elif isinstance(node, ast.Str):
+            attrs['value'] = getattr(node, 's', None)
+
+        graph.add_node(node_id, **attrs)
         
         # Add edge from parent
         if parent is not None:
@@ -142,49 +154,62 @@ def extract_paths(graph: nx.DiGraph,
         List of path contexts (start token, path, end token)
     """
     paths = []
-    
+
     # Get terminal nodes (leaf nodes)
     terminal_nodes = [n for n in graph.nodes() if graph.out_degree(n) == 0]
-    
+
+    # Helper: get a label for a node id using attributes stored in the graph
+    def node_label_from_graph(node_id):
+        node_data = graph.nodes.get(node_id, {})
+        # If a precomputed label exists, use it
+        if 'label' in node_data:
+            return node_data['label']
+        # Otherwise, attempt to derive a label from the type and any stored value
+        node_type = node_data.get('type')
+        if node_type is None:
+            return 'Unknown'
+        # For leaf-like nodes, a 'value' attribute may be present
+        value = node_data.get('value')
+        if value is not None:
+            return f"{node_type}:{value}"
+        return node_type
+
     # For each pair of terminal nodes, find the shortest path
     for i, source in enumerate(terminal_nodes):
         for target in terminal_nodes[i+1:]:
             try:
-                # Find shortest path between terminals
+                # Find shortest path between terminals in undirected AST
                 path = nx.shortest_path(graph.to_undirected(), source, target)
-                
+
                 # Skip if path is too long
                 if len(path) > max_length:
                     continue
-                
+
                 # Get path as node types
-                path_types = [graph.nodes[n]['type'] for n in path]
-                
+                path_types = [graph.nodes[n].get('type', 'Unknown') for n in path]
+
                 # Create path string (e.g., Name->Assign->Num)
                 path_str = '->'.join(path_types)
-                
-                # Get terminal node labels
-                source_node = [n for n in ast.walk(ast.parse('')) if id(n) == source][0]
-                target_node = [n for n in ast.walk(ast.parse('')) if id(n) == target][0]
-                
-                source_label = get_node_label(source_node)
-                target_label = get_node_label(target_node)
-                
+
+                # Get terminal node labels using stored attributes
+                source_label = node_label_from_graph(source)
+                target_label = node_label_from_graph(target)
+
                 # Add to paths
                 paths.append({
                     'start_token': source_label,
                     'path': path_str,
                     'end_token': target_label
                 })
-                
+
                 # Stop if we have enough paths
                 if len(paths) >= max_paths:
                     return paths
-            
+
             except nx.NetworkXNoPath:
                 # No path between nodes
                 continue
-    
+
     return paths
 
 

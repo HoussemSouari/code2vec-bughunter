@@ -1,16 +1,11 @@
-#!/usr/bin/env python3
-"""
-Code2Vec-BugHunter: Deep Learning for Bug Detection and Code Embedding
-Main entry point for the application
-"""
 
 import argparse
 import logging
 import os
 import sys
 
-from train import train_model
-from inference import run_inference
+from scripts.train import train_model
+from scripts.inference import run_inference
 from web_demo import app, init_inference_engine
 
 # Configure logging for the application

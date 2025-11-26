@@ -1,14 +1,10 @@
-"""
-Inference module for Code2Vec-BugHunter.
-Handles code parsing, AST path extraction, and model inference.
-"""
 
 import os
 import logging
 import torch
 from typing import Dict, List, Tuple, Any
 
-from model import Code2VecBugHunter
+from scripts.model import Code2VecBugHunter
 from utils.ast_utils import normalize_and_parse_code, extract_ast_paths
 from utils.visualization import visualize_attention
 from pathlib import Path
@@ -42,7 +38,9 @@ class CodeInference:
         
         # Simplified placeholder for vocabulary
         # In a real implementation, this would be loaded from the training artifacts
-        self.path_vocab = {}
+        # Load vocabularies from the model checkpoint if available
+        self.path_vocab = getattr(self.model, 'path_vocab', {}) or {}
+        self.token_vocab = getattr(self.model, 'token_vocab', {}) or {}
         
     def _preprocess_code(self, code: str) -> Dict:
         """
@@ -59,18 +57,28 @@ class CodeInference:
             ast_tree = normalize_and_parse_code(code)
             path_contexts = extract_ast_paths(ast_tree, self.max_paths, self.max_path_length)
             
-            # Convert paths to indices
-            # For simplicity, we'll use a dummy mapping in this example
-            # In a real implementation, this would use the actual vocabulary
+            # Convert paths and tokens to indices using saved vocabularies
             path_indices = torch.zeros(self.max_paths, dtype=torch.long)
-            
+            start_indices = torch.zeros(self.max_paths, dtype=torch.long)
+            end_indices = torch.zeros(self.max_paths, dtype=torch.long)
+
             for i, path_context in enumerate(path_contexts[:self.max_paths]):
-                # Get path index (or default to 1 if not in vocab)
-                path_idx = self.path_vocab.get(path_context['path'], 1)
+                # Use 0 as padding/unknown index (embedding padding_idx=0)
+                path_idx = self.path_vocab.get(path_context['path'], 0)
+                start_idx = self.token_vocab.get(path_context.get('start_token', ''), 0)
+                end_idx = self.token_vocab.get(path_context.get('end_token', ''), 0)
+
                 path_indices[i] = path_idx
-            
+                start_indices[i] = start_idx
+                end_indices[i] = end_idx
+
+            mask = (path_indices != 0).long()
+
             return {
-                'paths': path_indices.unsqueeze(0).to(self.device),  # Add batch dimension
+                'paths': path_indices.unsqueeze(0).to(self.device),  # Add batch dim
+                'start_ids': start_indices.unsqueeze(0).to(self.device),
+                'end_ids': end_indices.unsqueeze(0).to(self.device),
+                'mask': mask.unsqueeze(0).to(self.device),
                 'path_contexts': path_contexts,
                 'code': code
             }
@@ -98,7 +106,7 @@ class CodeInference:
         
         # Make prediction
         with torch.no_grad():
-            outputs = self.model.predict(preprocessed['paths'])
+            outputs = self.model.predict((preprocessed['paths'], preprocessed['start_ids'], preprocessed['end_ids'], preprocessed['mask']))
             
             # Extract results
             is_buggy = bool(outputs['is_buggy'][0].item())

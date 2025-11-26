@@ -1,0 +1,52 @@
+[
+  {
+    "id": "sample_0",
+    "code": "def get_element(array_0, index):\n    if 0 <= index < len(array_0):\n        return array_0[index]\n    return None",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_1",
+    "code": "def parse_number(s):\n    try:\n        return int(s)\n    except ValueError:\n        return None",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_2",
+    "code": "def parse_number(s):\n    try:\n        return int(s)\n    except ValueError:\n        return None",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_3",
+    "code": "def process_data(data):\n    result = data['key']  # KeyError if key doesn't exist\n    return result * 2",
+    "is_buggy": true
+  },
+  {
+    "id": "sample_4",
+    "code": "def get_element(array_4, index):\n    if 0 <= index < len(array_4):\n        return array_4[index]\n    return None",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_5",
+    "code": "def process_items(items):\n    for i in range(len(items)):\n        print(items[i])",
+    "is_buggy": false
+  },
+  {
+    "id": "sample_6",
+    "code": "def get_element(array_6, index):\n    return array_6[index]  # Missing bounds check",
+    "is_buggy": true
+  },
+  {
+    "id": "sample_7",
+    "code": "def get_element(array_7, index):\n    return array_7[index]  # Missing bounds check",
+    "is_buggy": true
+  },
+  {
+    "id": "sample_8",
+    "code": "def process_items(items):\n    for i in range(1, len(items)):  # Should start from 0\n        print(items[i])",
+    "is_buggy": true
+  },
+  {
+    "id": "sample_9",
+    "code": "def parse_number(s):\n    try:\n        return int(s)\n    except ValueError:\n        return None",
+    "is_buggy": false
+  }
+]

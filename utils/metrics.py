@@ -1,6 +1,3 @@
-"""
-Metrics utilities for model evaluation.
-"""
 
 import numpy as np
 from typing import Dict, List, Tuple, Union

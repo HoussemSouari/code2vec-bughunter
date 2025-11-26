@@ -1,7 +1,3 @@
-"""
-Training module for Code2Vec-BugHunter.
-Handles model training, evaluation, and checkpointing.
-"""
 
 import os
 import logging
@@ -10,6 +6,13 @@ from typing import Dict, Tuple, List, Optional
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path so local packages (e.g., `utils`) can be imported
+repo_root = Path(__file__).resolve().parent.parent
+if str(repo_root) not in sys.path:
+    sys.path.insert(0, str(repo_root))
 
 import torch
 import torch.nn as nn
@@ -52,11 +55,13 @@ def train_model(data_path: str,
     dataset_path = data_manager.download_dataset('defects4j_subset')
     train_loader, val_loader, test_loader = data_manager.load_datasets(dataset_path)
     
-    # Initialize model
+    # Initialize model (include token vocab size if available)
     path_vocab_size = data_manager.get_vocab_size()
-    
+    token_vocab_size = len(getattr(data_manager, 'token_vocab', {})) + 1 if getattr(data_manager, 'token_vocab', None) else 0
+
     model = Code2VecBugHunter(
         path_vocab_size=path_vocab_size,
+        token_vocab_size=token_vocab_size,
         embedding_dim=embedding_dim,
         hidden_dim=embedding_dim,
         num_layers=2,
@@ -68,7 +73,18 @@ def train_model(data_path: str,
     
     # Initialize optimizer and loss function
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    criterion = nn.BCEWithLogitsLoss()
+
+    # Compute pos_weight from training labels to handle imbalance
+    try:
+        train_labels = [s['is_buggy'] for s in data_manager.train_dataset.samples]
+        n_pos = sum(1 for v in train_labels if v)
+        n_neg = max(len(train_labels) - n_pos, 0)
+        pos_weight = float(n_neg) / max(float(n_pos), 1.0)
+        pos_weight_tensor = torch.tensor([pos_weight], dtype=torch.float).to(device)
+        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
+        logger.info(f"Using pos_weight={pos_weight:.4f} (n_pos={n_pos}, n_neg={n_neg})")
+    except Exception:
+        criterion = nn.BCEWithLogitsLoss()
     
     # Training loop
     logger.info(f"Starting training for {epochs} epochs")
@@ -88,10 +104,19 @@ def train_model(data_path: str,
         for batch in train_loader:
             paths = batch['paths'].to(device)
             labels = batch['label'].to(device)
-            
+            start_ids = batch.get('start_ids')
+            end_ids = batch.get('end_ids')
+            mask = batch.get('mask')
+            if start_ids is not None:
+                start_ids = start_ids.to(device)
+            if end_ids is not None:
+                end_ids = end_ids.to(device)
+            if mask is not None:
+                mask = mask.to(device)
+
             optimizer.zero_grad()
-            
-            outputs = model(paths)
+
+            outputs = model(paths, start_ids, end_ids, mask)
             logits = outputs['logits']
             
             loss = criterion(logits, labels)
@@ -115,8 +140,17 @@ def train_model(data_path: str,
             for batch in val_loader:
                 paths = batch['paths'].to(device)
                 labels = batch['label'].to(device)
-                
-                outputs = model(paths)
+                start_ids = batch.get('start_ids')
+                end_ids = batch.get('end_ids')
+                mask = batch.get('mask')
+                if start_ids is not None:
+                    start_ids = start_ids.to(device)
+                if end_ids is not None:
+                    end_ids = end_ids.to(device)
+                if mask is not None:
+                    mask = mask.to(device)
+
+                outputs = model(paths, start_ids, end_ids, mask)
                 logits = outputs['logits']
                 
                 loss = criterion(logits, labels)
@@ -149,6 +183,12 @@ def train_model(data_path: str,
         # Save best model
         if val_f1 > best_val_f1:
             best_val_f1 = val_f1
+            # Attach vocabularies to model before saving so inference can load them
+            try:
+                model.path_vocab = data_manager.path_vocab
+                model.token_vocab = data_manager.token_vocab
+            except Exception:
+                pass
             model.save(model_path)
             logger.info(f"Saved new best model with Val F1: {val_f1:.4f}")
     
@@ -161,6 +201,11 @@ def train_model(data_path: str,
     
     # Save final model if a best model wasn't saved
     if best_val_f1 == 0.0:
+        try:
+            model.path_vocab = data_manager.path_vocab
+            model.token_vocab = data_manager.token_vocab
+        except Exception:
+            pass
         model.save(model_path)
         logger.info(f"Saved final model")
     
@@ -194,8 +239,17 @@ def evaluate_model(model: Code2VecBugHunter,
         for batch in data_loader:
             paths = batch['paths'].to(device)
             labels = batch['label'].to(device)
-            
-            outputs = model(paths)
+            start_ids = batch.get('start_ids')
+            end_ids = batch.get('end_ids')
+            mask = batch.get('mask')
+            if start_ids is not None:
+                start_ids = start_ids.to(device)
+            if end_ids is not None:
+                end_ids = end_ids.to(device)
+            if mask is not None:
+                mask = mask.to(device)
+
+            outputs = model(paths, start_ids, end_ids, mask)
             logits = outputs['logits']
             attention_weights = outputs['attention_weights']
             

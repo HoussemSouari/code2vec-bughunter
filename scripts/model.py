@@ -1,7 +1,4 @@
-"""
-Neural network model implementation for Code2Vec-BugHunter.
-Based on the Code2Vec architecture with modifications for bug detection.
-"""
+
 
 import torch
 import torch.nn as nn
@@ -58,7 +55,9 @@ class PathEncoder(nn.Module):
         """
         # [batch_size, max_paths, embedding_dim]
         path_embeddings = self.path_embedding(paths)
-        
+
+        # If token embeddings are available, this method will be called
+        # with start_ids and end_ids by the higher-level encoder forward.
         return self.dropout(path_embeddings)
 
 
@@ -109,7 +108,7 @@ class Code2VecBugHunter(nn.Module):
         
         self.dropout = nn.Dropout(dropout)
         
-    def forward(self, paths: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, paths: torch.Tensor, start_ids: Optional[torch.Tensor] = None, end_ids: Optional[torch.Tensor] = None, mask: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         """
         Forward pass
         
@@ -123,12 +122,31 @@ class Code2VecBugHunter(nn.Module):
         """
         # Get path embeddings [batch_size, max_paths, embedding_dim]
         path_embeddings = self.encoder(paths)
-        
+
+        # If token embeddings exist and token ids are provided, combine them
+        if self.encoder.token_embedding is not None and start_ids is not None and end_ids is not None:
+            # [batch, max_paths, dim]
+            start_emb = self.encoder.token_embedding(start_ids)
+            end_emb = self.encoder.token_embedding(end_ids)
+            # Combine embeddings (sum)
+            path_embeddings = path_embeddings + start_emb + end_emb
+
         # Calculate attention scores [batch_size, max_paths, 1]
         attention_scores = self.attention(path_embeddings)
-        
+
+        # Squeeze to [batch, max_paths]
+        attention_logits = attention_scores.squeeze(-1)
+
+        # If mask provided, set padded positions to large negative value before softmax
+        if mask is not None:
+            # mask: 1 for valid, 0 for pad
+            # Create boolean mask
+            bool_mask = (mask == 1)
+            # Where mask is False, set logits to a large negative value
+            attention_logits = attention_logits.masked_fill(~bool_mask, float('-1e9'))
+
         # Apply softmax to get attention weights [batch_size, max_paths]
-        attention_weights = F.softmax(attention_scores.squeeze(-1), dim=1)
+        attention_weights = F.softmax(attention_logits, dim=1)
         
         # Apply attention to get code vector [batch_size, embedding_dim]
         # We use unsqueeze to add a dimension for broadcasting
@@ -167,7 +185,12 @@ class Code2VecBugHunter(nn.Module):
         """
         self.eval()
         with torch.no_grad():
-            outputs = self.forward(paths)
+            # Support optional start/end ids and mask if passed in a tuple
+            if isinstance(paths, (list, tuple)):
+                # Expect (paths, start_ids, end_ids, mask)
+                outputs = self.forward(*paths)
+            else:
+                outputs = self.forward(paths)
             
             # Apply sigmoid to get probability
             probs = torch.sigmoid(outputs['logits'])
@@ -190,6 +213,12 @@ class Code2VecBugHunter(nn.Module):
             'num_layers': len(self.fc_layers),
             'state_dict': self.state_dict()
         }
+        # Optionally include vocabularies if attached to the model
+        if hasattr(self, 'path_vocab') and self.path_vocab:
+            model_state['path_vocab'] = self.path_vocab
+        if hasattr(self, 'token_vocab') and self.token_vocab:
+            model_state['token_vocab'] = self.token_vocab
+
         torch.save(model_state, path)
         logger.info(f"Model saved to {path}")
     
@@ -200,10 +229,14 @@ class Code2VecBugHunter(nn.Module):
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             
         model_state = torch.load(path, map_location=device)
-        
+
+        token_vocab = model_state.get('token_vocab', {})
+        token_vocab_size = len(token_vocab) + 1 if token_vocab else 0
+
         # Create model with saved parameters
         model = cls(
             path_vocab_size=model_state['path_vocab_size'],
+            token_vocab_size=token_vocab_size,
             embedding_dim=model_state['embedding_dim'],
             hidden_dim=model_state['hidden_dim'],
             num_layers=model_state['num_layers']
@@ -211,6 +244,9 @@ class Code2VecBugHunter(nn.Module):
         
         # Load weights
         model.load_state_dict(model_state['state_dict'])
+        # Attach vocabs if present
+        model.path_vocab = model_state.get('path_vocab', {})
+        model.token_vocab = model_state.get('token_vocab', {})
         model.to(device)
         model.eval()
         

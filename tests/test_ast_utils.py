@@ -1,6 +1,3 @@
-"""
-Unit tests for AST utility functions.
-"""
 
 import unittest
 import ast

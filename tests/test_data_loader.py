@@ -1,6 +1,4 @@
-"""
-Unit tests for data loading and processing.
-"""
+
 
 import unittest
 import os
@@ -10,7 +8,7 @@ import shutil
 from pathlib import Path
 
 import torch
-from data_loader import DataManager, CodeDataset
+from scripts.data_loader import DataManager, CodeDataset
 
 
 class TestDataLoader(unittest.TestCase):

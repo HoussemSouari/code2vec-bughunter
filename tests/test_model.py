@@ -1,13 +1,11 @@
-"""
-Unit tests for the Code2Vec model.
-"""
+
 
 import unittest
 import os
 import torch
 import tempfile
 
-from model import Code2VecBugHunter, PathEncoder
+from scripts.model import Code2VecBugHunter, PathEncoder
 
 
 class TestModel(unittest.TestCase):
